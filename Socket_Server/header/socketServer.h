@@ -3,6 +3,9 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <time.h>
+#include <string>
+#include <windows.h>
 
 
 #pragma comment(lib, "ws2_32.lib")
@@ -13,6 +16,8 @@ typedef struct serverThread {
 	bool isRunning = false;
 	int threadID = -1;
 	SOCKET client = -1;
+	char ip[50] = "undefined";
+	int port = -1;
 } Sthread;
 
 
@@ -36,7 +41,7 @@ public:
 
 private:
 
-	void handleRecieve(char* recieve, SOCKET& client);
+	std::string handleRecieve(char* recieve);
 
 
 
@@ -49,3 +54,4 @@ private:
 
 
 void printMsg(const char* msg);
+void printMsg(std::string msg);
