@@ -125,16 +125,14 @@ void socketServer::socketRecieveThread(Sthread* cthread) {
 		if (nRecv > 0)
 		{
 			char str[50];
-			sprintf_s(str, "%dthread send message", cthread->threadID);
+			sprintf_s(str, "%d thread send message", cthread->threadID);
 			printMsg(str);
-			printMsg(buff);
+			//printMsg(buff);
 			char mess[] = "server:收到了你的消息。";
 			send(cthread->client, mess, sizeof(mess), 0);
 
 			// deal with incomming msg and then reply
-			std::string msg = handleRecieve(buff);
-			printMsg(msg);
-			send(cthread->client, msg.c_str(), sizeof(msg.c_str()), 0);
+			handleRecieve(buff, cthread->client);
 			
 		}
 		else
@@ -149,7 +147,7 @@ void socketServer::socketRecieveThread(Sthread* cthread) {
 }
 
 
-std::string socketServer::handleRecieve(char* recieve) {
+void socketServer::handleRecieve(char* recieve, SOCKET client) {
 
 	// return time
 	if (strcmp(recieve, "time")) {
@@ -157,13 +155,13 @@ std::string socketServer::handleRecieve(char* recieve) {
 		GetLocalTime(&sys);
 		char msg[100];
 		snprintf(msg, 100, "%4d/%02d/%02d %02d:%02d:%02d.%03d 星期%1d\n", sys.wYear, sys.wMonth, sys.wDay, sys.wHour, sys.wMinute, sys.wSecond, sys.wMilliseconds, sys.wDayOfWeek);
-		printMsg(msg);
-		std::string stringmsg = msg;
-		return stringmsg;
+		printMsg("sending: " + *(new std::string(msg)));
+		send(client, msg, sizeof(msg), 0);
+		return;
 	}
 	// return name of server
 	if (strcmp(recieve, "servername")) {
-		return "lenovo S5";
+		return;
 	}
 	// return data of connections
 	if (strcmp(recieve, "connection")) {
@@ -173,7 +171,7 @@ std::string socketServer::handleRecieve(char* recieve) {
 			snprintf(tmp, 100, "connetion %d: %s : %d\n", iter->threadID, iter->ip, iter->port);
 			msg.append(tmp);
 		}
-		return msg;
+		return;
 	}
 	// transfer data to target client
 	else if (1) {

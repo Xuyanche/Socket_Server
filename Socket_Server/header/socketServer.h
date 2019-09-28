@@ -41,7 +41,7 @@ public:
 
 private:
 
-	std::string handleRecieve(char* recieve);
+	void handleRecieve(char* recieve, SOCKET client);
 
 
 

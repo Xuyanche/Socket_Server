@@ -1,6 +1,7 @@
 *.sln
-Socket_Server/.vs/*
+*/.vs/*
 *.vcxproj*
 .vs/*
 Socket_Server/x64
-x64/*
+*x64/*
+*/Debug*
