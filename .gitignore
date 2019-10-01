@@ -3,5 +3,6 @@
 *.vcxproj*
 .vs/*
 Socket_Server/x64
+Socket_Client/x64
 *x64/*
 */Debug*

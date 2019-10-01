@@ -1,5 +1,5 @@
 #pragma once
-#include <winsock.h>
+#include <WS2tcpip.h>
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -18,6 +18,8 @@ typedef struct serverThread {
 	SOCKET client = -1;
 	char ip[50] = "undefined";
 	int port = -1;
+	bool isBuffUsing = false;
+	char msgbuff[100];
 } Sthread;
 
 
@@ -35,13 +37,17 @@ public:
 	void socketRecieveThread(Sthread *clientSthread);
 	void closeSocketServer();
 
-
-
+	
 	
 
 private:
 
-	void handleRecieve(char* recieve, SOCKET client);
+	void handleRecieve(std::string recieve, Sthread* cthread);
+
+	/* create socktet connection in this function, transfer the msg then disconnect*/
+	bool msgTrans(const char* ip, const unsigned short port);
+
+	std::string recieveAndPrint(Sthread* cthread);
 
 
 
@@ -55,3 +61,4 @@ private:
 
 void printMsg(const char* msg);
 void printMsg(std::string msg);
+int stringtoint(std::string);

@@ -1,16 +1,27 @@
 ﻿#include "..\header\socketClient.h"
 #include <iostream>
 
-#define MYSERVERIP	"127.0.0.1"
-#define MYPROT	16000
+
 
 
 int main()
 {
-	socketClient* client = new socketClient();
-	client->createSocket();
-	client->createConnection(TEXT(MYSERVERIP), MYPROT);
-	delete client;
+
+	std::string cmd;
+
+	do {
+		printMsg("connect?(y/n)");		
+		std::cin >> cmd;
+		if (cmd == "y") {
+			socketClient* client = new socketClient();
+			client->createSocket();
+			client->createConnection(TEXT(MYSERVERIP), MYPROT);
+			delete client;
+
+		}
+
+	} while (cmd == "y");
+
 
 }
 

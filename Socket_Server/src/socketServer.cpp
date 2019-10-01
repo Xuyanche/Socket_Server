@@ -40,7 +40,7 @@ bool socketServer::createSocket(const char* ip, unsigned short port) {
 	SOCKADDR_IN serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(port);
-	serverAddr.sin_addr.S_un.S_addr = inet_addr(ip);
+	InetPton(AF_INET, ip, &serverAddr.sin_addr.s_addr);
 	int tmp = bind(serverSocket, (SOCKADDR *)&serverAddr, sizeof(SOCKADDR_IN));
 	if (tmp == SOCKET_ERROR) {
 		printMsg("socket bind error");
@@ -102,15 +102,14 @@ void socketServer::addClientServer(SOCKET& clientSocket) {
 	std::thread t(&socketServer::socketRecieveThread, this, nt);
 	t.detach();
 	nt->t1 = &t;
-	struct sockaddr_in sa;
-	int len = sizeof(sa);
-	if (!getpeername(serverSocket, (struct sockaddr *)&sa, &len))
-	{
-		printf("对方IP：%s ", inet_ntoa(sa.sin_addr));
-		strcpy_s(nt->ip, inet_ntoa(sa.sin_addr));
-		printf("对方PORT：%d ", ntohs(sa.sin_port));
-		nt->port = ntohs(sa.sin_port);
+	char clientip[INET_ADDRSTRLEN];
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+	if (getpeername(clientSocket, (struct sockaddr*)&addr, &addrlen) != -1) {
+		strcpy_s(nt->ip, inet_ntop(AF_INET, &(addr.sin_addr), clientip, sizeof(clientip)));
+		nt->port = ntohs(addr.sin_port);
 	}
+	
 	threadVect.push_back(nt);
 
 }
@@ -119,20 +118,17 @@ void socketServer::addClientServer(SOCKET& clientSocket) {
 void socketServer::socketRecieveThread(Sthread* cthread) {
 	while (cthread->isRunning == true)
 	{
-		
-		char buff[65535];
-		int nRecv = recv(cthread->client, buff, 65535, 0);
-		if (nRecv > 0)
+		printMsg("waiting for message...");
+		std::string recv = recieveAndPrint(cthread);
+		if (recv != "SOCKET_CONNECT_BREAK")
 		{
 			char str[50];
 			sprintf_s(str, "%d thread send message", cthread->threadID);
 			printMsg(str);
-			//printMsg(buff);
-			char mess[] = "server:收到了你的消息。";
-			send(cthread->client, mess, sizeof(mess), 0);
+			printMsg(recv);
 
 			// deal with incomming msg and then reply
-			handleRecieve(buff, cthread->client);
+			handleRecieve(recv, cthread);
 			
 		}
 		else
@@ -147,34 +143,74 @@ void socketServer::socketRecieveThread(Sthread* cthread) {
 }
 
 
-void socketServer::handleRecieve(char* recieve, SOCKET client) {
-
+void socketServer::handleRecieve(std::string recieve, Sthread* nowthread) {
 	// return time
-	if (strcmp(recieve, "time")) {
+	if (recieve == "time") {
 		SYSTEMTIME sys;
 		GetLocalTime(&sys);
 		char msg[100];
-		snprintf(msg, 100, "%4d/%02d/%02d %02d:%02d:%02d.%03d 星期%1d\n", sys.wYear, sys.wMonth, sys.wDay, sys.wHour, sys.wMinute, sys.wSecond, sys.wMilliseconds, sys.wDayOfWeek);
+		snprintf(msg, 100, "%4d/%02d/%02d %02d:%02d:%02d.%03d 星期%1d", sys.wYear, sys.wMonth, sys.wDay, sys.wHour, sys.wMinute, sys.wSecond, sys.wMilliseconds, sys.wDayOfWeek);
 		printMsg("sending: " + *(new std::string(msg)));
-		send(client, msg, sizeof(msg), 0);
+		send(nowthread->client, msg, sizeof(msg), 0);
 		return;
 	}
 	// return name of server
-	if (strcmp(recieve, "servername")) {
+	else if (recieve == "servername") {
+		printMsg("in servername");
+		TCHAR buf[MAX_COMPUTERNAME_LENGTH + 2];
+		DWORD buf_size;
+		buf_size = sizeof buf - 1;
+		GetComputerName(buf, &buf_size);
+		send(nowthread->client, buf, sizeof(buf), 0);
 		return;
 	}
 	// return data of connections
-	if (strcmp(recieve, "connection")) {
-		std::string msg = "";
+	else if (recieve == "conninfo") {
+		char msg[200];
+		strcpy_s(msg, "");
 		for (auto iter : threadVect) {
+			if (iter->isRunning == false)
+				continue;
 			char tmp[100];
-			snprintf(tmp, 100, "connetion %d: %s : %d\n", iter->threadID, iter->ip, iter->port);
-			msg.append(tmp);
+			snprintf(tmp, 100, "connetion %d: %s : %d", iter->threadID, iter->ip, iter->port);
+			strcat_s(msg, tmp);
 		}
+		printMsg(msg);
+		send(nowthread->client, msg, sizeof(msg), 0);
 		return;
 	}
-	// transfer data to target client
-	else if (1) {
+	// transfer data to target client	
+	else if (recieve.find("msgtrans") != std::string::npos) {
+		int tmp = recieve.find("&");
+		int threadid = stringtoint(recieve.substr(tmp, recieve.find_last_of("&")));
+
+		char toTrans[500];
+		strcpy_s(toTrans, recieve.c_str());
+		char msg[100];
+		sprintf_s(msg, "roger, thread id=%d, message=%s", threadid, recieve.substr(recieve.find_last_of("&"), std::string::npos).c_str());
+		printMsg(msg);
+		if (threadVect[threadid]->isBuffUsing == false) {
+			strcpy_s(threadVect[threadid]->msgbuff, toTrans);
+			threadVect[threadid]->isBuffUsing = true;
+			//send(nowthread->client, msg, sizeof(msg), 0);
+		}
+
+		
+	}
+	else if (recieve == "checkmsg") {
+		char testmsg[100];
+		if (nowthread->isBuffUsing == true ) {
+			strcpy_s(testmsg, nowthread->msgbuff);
+			memset(nowthread->msgbuff, '\0', sizeof(nowthread->msgbuff));
+			nowthread->isBuffUsing = false;
+			printMsg("try sending");
+			send(threadVect[0]->client, testmsg, sizeof(testmsg), 0);
+		}
+		else {
+			strcpy_s(testmsg, "no");
+			printMsg("no msg");
+			send(threadVect[0]->client, testmsg, sizeof(testmsg), 0);
+		}
 
 	}
 
@@ -182,14 +218,48 @@ void socketServer::handleRecieve(char* recieve, SOCKET client) {
 }
 
 
+std::string socketServer::recieveAndPrint(Sthread* nowthread) {
+	char message[100];
+	ZeroMemory(message, sizeof(message));
+	int resultRecv = recv(nowthread->client, message, sizeof(message), 0);
+	if (resultRecv > 0)
+	{
+		std::string stringmsg = message;
+		std::cout << "[client " << nowthread->threadID << "]# " << stringmsg << std::endl;
+		memset(message, '\0', sizeof(message));
+		return stringmsg;
+	}
+	else
+	{
+		//这几种错误码，认为连接是正常的，继续接收
+		if ((resultRecv < 0) && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+		{
+			return "";
+		}
+		printMsg("socket connection break.");
+		return "SOCKET_CONNECT_BREAK";
+	}
+}
 
 
 
-void printMsg(const char* msg) {
+
+inline void printMsg(const char* msg) {
 	std::cout << msg << std::endl;
 }
 
 
-void printMsg(std::string msg) {
+inline void printMsg(std::string msg) {
 	std::cout << msg << std::endl;
+}
+
+int stringtoint(std::string s) {
+	int result = 0;
+	for (int i = 0; i < s.length(); i++) {
+		if (s[i] >= '0' && s[i] <= 9) {
+			result *= 10;
+			result += (s[i] - '0');
+		}
+	}
+	return result;
 }
