@@ -10,6 +10,7 @@ socketServer::socketServer(){
 }
 
 
+
 socketServer::~socketServer() {
 	closeSocketServer();
 }
@@ -95,6 +96,8 @@ SOCKET socketServer::acceptConnetion() {
 
 
 void socketServer::addClientServer(SOCKET& clientSocket) {
+	char respond[] = "server acknowledged";
+	send(clientSocket, respond, sizeof(respond), 0);
 	Sthread *nt = new Sthread();
 	nt->threadID = ++clientSocketCount;
 	nt->isRunning = true;
@@ -119,6 +122,7 @@ void socketServer::socketRecieveThread(Sthread* cthread) {
 	while (cthread->isRunning == true)
 	{
 		printMsg("waiting for message...");
+		threadRefresh(cthread);
 		std::string recv = recieveAndPrint(cthread);
 		if (recv != "SOCKET_CONNECT_BREAK")
 		{
@@ -134,7 +138,7 @@ void socketServer::socketRecieveThread(Sthread* cthread) {
 		else
 		{
 			char str[50];
-			sprintf_s(str, "ID%d is exit", cthread->threadID);
+			sprintf_s(str, "ID%d exit", cthread->threadID);
 			printMsg(str);
 			cthread->isRunning = false;
 		}
@@ -182,32 +186,43 @@ void socketServer::handleRecieve(std::string recieve, Sthread* nowthread) {
 	// transfer data to target client	
 	else if (recieve.find("msgtrans") != std::string::npos) {
 		int tmp = recieve.find("&");
-		int threadid = stringtoint(recieve.substr(tmp, recieve.find_last_of("&")));
-
+		std::string idstring = recieve.substr(tmp + 1, recieve.find_last_of("&") - tmp - 1);
+		int threadid = stringtoint(idstring);
 		char toTrans[500];
+		ZeroMemory(toTrans, sizeof(toTrans));
 		strcpy_s(toTrans, recieve.c_str());
 		char msg[100];
+		ZeroMemory(msg, sizeof(msg));
 		sprintf_s(msg, "roger, thread id=%d, message=%s", threadid, recieve.substr(recieve.find_last_of("&"), std::string::npos).c_str());
 		printMsg(msg);
-		if (threadVect[threadid]->isBuffUsing == false) {
-			strcpy_s(threadVect[threadid]->msgbuff, toTrans);
-			threadVect[threadid]->isBuffUsing = true;
-			//send(nowthread->client, msg, sizeof(msg), 0);
+		if ((threadid - 1) >= 0 && ((threadid - 1) < threadVect.size())) {
+			if (threadVect[threadid - 1]->isBuffUsing == false) {
+				strcpy_s(threadVect[threadid - 1]->msgbuff, recieve.substr(recieve.find_last_of("&"), std::string::npos).c_str());
+				threadVect[threadid - 1]->isBuffUsing = true;
+				//send(nowthread->client, msg, sizeof(msg), 0);
+			}
+			else {
+				printMsg("blocked");
+			}
 		}
+		else {
+			printMsg("thread id invalid");
+		}
+		
 
 		
 	}
 	else if (recieve == "checkmsg") {
-		char testmsg[100];
+		char testmsg[65535];
 		if (nowthread->isBuffUsing == true ) {
 			strcpy_s(testmsg, nowthread->msgbuff);
-			memset(nowthread->msgbuff, '\0', sizeof(nowthread->msgbuff));
 			nowthread->isBuffUsing = false;
-			printMsg("try sending");
+			memset(nowthread->msgbuff, '\0', sizeof(nowthread->msgbuff));
+			std::cout << "try sending: " << testmsg << std::endl;
 			send(threadVect[0]->client, testmsg, sizeof(testmsg), 0);
 		}
 		else {
-			strcpy_s(testmsg, "no");
+			strcpy_s(testmsg, "NO_MESSAGE");
 			printMsg("no msg");
 			send(threadVect[0]->client, testmsg, sizeof(testmsg), 0);
 		}
@@ -219,7 +234,7 @@ void socketServer::handleRecieve(std::string recieve, Sthread* nowthread) {
 
 
 std::string socketServer::recieveAndPrint(Sthread* nowthread) {
-	char message[100];
+	char message[65535];
 	ZeroMemory(message, sizeof(message));
 	int resultRecv = recv(nowthread->client, message, sizeof(message), 0);
 	if (resultRecv > 0)
@@ -241,6 +256,10 @@ std::string socketServer::recieveAndPrint(Sthread* nowthread) {
 	}
 }
 
+void socketServer::threadRefresh(Sthread* cthread) {
+
+}
+
 
 
 
@@ -256,7 +275,7 @@ inline void printMsg(std::string msg) {
 int stringtoint(std::string s) {
 	int result = 0;
 	for (int i = 0; i < s.length(); i++) {
-		if (s[i] >= '0' && s[i] <= 9) {
+		if (s[i] >= '0' && s[i] <= '9') {
 			result *= 10;
 			result += (s[i] - '0');
 		}

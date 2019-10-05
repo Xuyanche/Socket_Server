@@ -50,7 +50,8 @@ bool socketClient::createConnection(PCWSTR ip, const unsigned short port) {
 			printMsg("cannot connect to server");
 			return false;
 		}
-		printMsg("successfully connect to server");
+		if (recieveAndPrint() == SOCKET_CONNECTION_BREAK)
+			return false;
 		clientContact();
 		return true;
 	}
@@ -86,8 +87,15 @@ void socketClient::clientContact() {
 			else if (command == "serverName") {
 				resultRecv = requestServerName();
 			}
-			else if (command.find("msgTrans") >= 0) {
+			else if (command == "msgTrans") {
 				resultRecv = requestMsgTrans();
+			}
+			else if (command == "disconnect") {
+				printMsg("disconnecting");
+				break;
+			}
+			else if (command == "check") {
+				printMsg(clientmsg);
 			}
 			else {
 				printMsg("invalid command");
@@ -113,16 +121,18 @@ void socketClient::clientListenThread()
 	while (listen->isRunning) {
 		if (clientSocket != -1)
 		{
-			std::string tosend = "checkmsg";
-			send(clientSocket, tosend.c_str(), sizeof(tosend.c_str()), 0);
+			char tosend[] = "checkmsg";
+			send(clientSocket, tosend, sizeof(tosend), 0);
 			ZeroMemory(message, sizeof(message));
 			int resultRecv = recv(clientSocket, message, sizeof(message), 0);
 			
 			if (resultRecv > 0)
 			{
-				if (strcmp(message, "no") != 0) {
+				//printMsg(message);
+				std::string messagestring = message;
+				if (messagestring != "NO_MESSAGE") {
 					strcpy_s(clientmsg, message);
-					printMsg(message);
+					printMsg(clientmsg);
 				}
 				ZeroMemory(message, sizeof(message));
 			}
@@ -190,12 +200,17 @@ int socketClient::requestServerName() {
 int socketClient::requestMsgTrans() {
 	if (clientSocket != -1)
 	{
+		printMsg("please input target thread ID");
+		int threadID = -1;
+		std::cin >> threadID;
+		printMsg("please input message");
 		char tosend[65535];
-		int threadID=1;
-		char totrans[500];
-		strcpy_s(totrans, "test");
+		char totrans[65535];
+		ZeroMemory(tosend, sizeof(tosend));
+		ZeroMemory(totrans, sizeof(tosend));
+		std::cin >> totrans;
 		sprintf_s(tosend, "msgtrans&%d&%s", threadID, totrans);
-		printMsg(tosend);
+		//printMsg(tosend);
 		send(clientSocket, tosend, sizeof(tosend), 0);
 		return 1;
 	}

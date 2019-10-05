@@ -17,7 +17,6 @@ int main()
 			client->createSocket();
 			client->createConnection(TEXT(MYSERVERIP), MYPROT);
 			delete client;
-
 		}
 
 	} while (cmd == "y");

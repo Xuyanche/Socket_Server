@@ -43,10 +43,7 @@ public:
 private:
 
 	void handleRecieve(std::string recieve, Sthread* cthread);
-
-	/* create socktet connection in this function, transfer the msg then disconnect*/
-	bool msgTrans(const char* ip, const unsigned short port);
-
+	void threadRefresh(Sthread* cthread);
 	std::string recieveAndPrint(Sthread* cthread);
 
 
