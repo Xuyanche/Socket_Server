@@ -72,9 +72,6 @@ void socketClient::clientContact() {
 		int resultRecv = -1;
 		while (true)
 		{
-			if (clientmsg) {
-
-			}
 			std::string command;
 			printMsg("avaliable command:  time / connInfo / serverName / msgTrans");
 			std::cout << "please enter command:";
@@ -135,25 +132,26 @@ void socketClient::clientListenThread()
 				if (recieveAndPrint() == SOCKET_CONNECTION_BREAK) {
 					closeSocket();
 				}
-					
-
 			}
-
-			char tosend[] = "checkmsg";
-			send(clientSocket, tosend, sizeof(tosend), 0);
-			ZeroMemory(message, sizeof(message));
-			int resultRecv = recv(clientSocket, message, sizeof(message), 0);
-			
-			if (resultRecv > 0)
-			{
-				//printMsg(message);	
-				std::string messagestring = message;
-				if (messagestring != "NO_MESSAGE") {
-					strcpy_s(clientmsg, message);
-					printMsg(clientmsg);
-				}
+			else {
+				char tosend[] = "checkmsg";
+				send(clientSocket, tosend, sizeof(tosend), 0);
 				ZeroMemory(message, sizeof(message));
+				int resultRecv = recv(clientSocket, message, sizeof(message), 0);
+
+				if (resultRecv > 0)
+				{
+					//printMsg(message);	
+					std::string messagestring = message;
+					if (messagestring != "NO_MESSAGE") {
+						strcpy_s(clientmsg, message);
+						printMsg(messagestring);
+					}
+					ZeroMemory(message, sizeof(message));
+				}
 			}
+
+			
 		}
 		else
 		{
