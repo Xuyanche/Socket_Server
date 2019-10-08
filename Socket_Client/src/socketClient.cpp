@@ -200,7 +200,7 @@ int socketClient::requestServerName() {
 int socketClient::requestMsgTrans() {
 	if (clientSocket != -1)
 	{
-		printMsg("please input target thread ID");
+		printMsg("please input target thread ID&msg");
 		int threadID = -1;
 		std::cin >> threadID;
 		printMsg("please input message");
