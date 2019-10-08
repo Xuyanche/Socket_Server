@@ -1,10 +1,11 @@
 #include "../header/socketClient.h"
 #include <cstring>
 
-
+int timenum = 0;
 
 socketClient::socketClient() {
 	ZeroMemory(clientmsg, sizeof(clientmsg));
+	ZeroMemory(requestmsg, sizeof(requestmsg));
 	clientSocket = -1;
 	WSADATA wsadata;
 	if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0) {
@@ -78,6 +79,7 @@ void socketClient::clientContact() {
 			printMsg("avaliable command:  time / connInfo / serverName / msgTrans");
 			std::cout << "please enter command:";
 			std::cin >> command;
+			ZeroMemory(requestmsg, sizeof(requestmsg));
 			if (command == "time") {
 				resultRecv = requestTime();
 			}
@@ -97,6 +99,9 @@ void socketClient::clientContact() {
 			else if (command == "check") {
 				printMsg(clientmsg);
 			}
+			else if (command == "changecheckstate") {
+				listen->isRunning = (!listen->isRunning);
+			}
 			else {
 				printMsg("invalid command");
 				resultRecv = 1;
@@ -106,8 +111,9 @@ void socketClient::clientContact() {
 			if (resultRecv < 0)
 			{
 				printMsg("connection break");
-				break;//跳出接收循环
+				break;
 			}
+			
 		}
 	}
 	else
@@ -121,6 +127,18 @@ void socketClient::clientListenThread()
 	while (listen->isRunning) {
 		if (clientSocket != -1)
 		{
+			if (strcmp(requestmsg, "") != 0 ) {
+
+				send(clientSocket, requestmsg, sizeof(requestmsg), 0);
+				ZeroMemory(requestmsg, sizeof(requestmsg));
+
+				if (recieveAndPrint() == SOCKET_CONNECTION_BREAK) {
+					closeSocket();
+				}
+					
+
+			}
+
 			char tosend[] = "checkmsg";
 			send(clientSocket, tosend, sizeof(tosend), 0);
 			ZeroMemory(message, sizeof(message));
@@ -128,7 +146,7 @@ void socketClient::clientListenThread()
 			
 			if (resultRecv > 0)
 			{
-				//printMsg(message);
+				//printMsg(message);	
 				std::string messagestring = message;
 				if (messagestring != "NO_MESSAGE") {
 					strcpy_s(clientmsg, message);
@@ -153,48 +171,32 @@ void socketClient::clientListenThread()
 int socketClient::requestTime() {
 	if (clientSocket != -1)
 	{
-		std::string tosend = "time";
-		send(clientSocket, tosend.c_str(), sizeof(tosend.c_str()), 0);
-		if (recieveAndPrint() == SOCKET_CONNECTION_BREAK)
-			return -1;
+		strcpy_s(requestmsg, "time");
+		return 1;
 	}
-	else
-	{
-		printMsg("not connecting to server");
-		return -1;
-	}
+	printMsg("not connecting to server");
+	return -1;
 }
 
 int socketClient::requestConnInfo() {
 	if (clientSocket != -1)
 	{
-		std::string tosend = "conninfo";
-		send(clientSocket, tosend.c_str(), sizeof(tosend.c_str()), 0);
-		if (recieveAndPrint() == SOCKET_CONNECTION_BREAK)
-			return -1;
+		strcpy_s(requestmsg, "conninfo");
 		return 1;
 	}
-	else
-	{
-		printMsg("not connecting to server");
-		return -1;
-	}
+	printMsg("not connecting to server");
+	return -1;
 }
 
 int socketClient::requestServerName() {
 	if (clientSocket != -1)
 	{
-		char tosend[] = "servername";
-		send(clientSocket, tosend, sizeof(tosend), 0);
-		if (recieveAndPrint() == SOCKET_CONNECTION_BREAK)
-			return -1;
+		strcpy_s(requestmsg, "servername");
 		return 1;
+			
 	}
-	else
-	{
-		printMsg("not connecting to server");
-		return -1;
-	}
+	printMsg("not connecting to server");
+	return -1;
 }
 
 int socketClient::requestMsgTrans() {
@@ -204,14 +206,9 @@ int socketClient::requestMsgTrans() {
 		int threadID = -1;
 		std::cin >> threadID;
 		printMsg("please input message");
-		char tosend[65535];
 		char totrans[65535];
-		ZeroMemory(tosend, sizeof(tosend));
-		ZeroMemory(totrans, sizeof(tosend));
 		std::cin >> totrans;
-		sprintf_s(tosend, "msgtrans&%d&%s", threadID, totrans);
-		//printMsg(tosend);
-		send(clientSocket, tosend, sizeof(tosend), 0);
+		sprintf_s(requestmsg, "msgtrans&%d&%s", threadID, totrans);
 		return 1;
 	}
 	else
@@ -234,7 +231,6 @@ std::string socketClient::recieveAndPrint() {
 	}
 	else
 	{
-		//这几种错误码，认为连接是正常的，继续接收
 		if ((resultRecv < 0) && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 		{
 			return "blocked";

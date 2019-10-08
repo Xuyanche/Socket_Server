@@ -45,6 +45,7 @@ private:
 
 
 	SOCKET clientSocket;
+	char requestmsg[65535];
 	char message[65535];
 	char clientmsg[65535];
 

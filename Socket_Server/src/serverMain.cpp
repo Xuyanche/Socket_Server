@@ -2,7 +2,7 @@
 using namespace std;
 
 #define MYSERVERIP	"127.0.0.1"
-#define MYPROT	16000
+#define MYPROT	2471
 
 int main() {
 
